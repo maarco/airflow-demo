@@ -17,7 +17,7 @@ This is an Apache Airflow demo project that orchestrates Informatica Intelligent
 ### Prerequisites Installation
 ```cmd
 # Install everything at once
-install.bat
+scripts\install.bat
 
 # Or manually:
 python -m venv airflow_env
@@ -27,8 +27,8 @@ pip install -r requirements.txt
 
 ### Configuration
 1. Update `.env` file with your SQL Server and IICS credentials
-2. Follow `SQL_SETUP.md` for database creation
-3. Run health checks: `run_health_check.bat`
+2. Follow `docs\SQL_SETUP.md` for database creation
+3. Run health checks: `scripts\run_health_check.bat`
 
 ### Airflow Initialization  
 ```cmd
@@ -39,16 +39,16 @@ airflow db init
 airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@company.com --password admin
 
 # Setup Informatica connection
-setup_informatica_connection.bat
+scripts\setup_informatica_connection.bat
 ```
 
 ### Starting Services
 ```cmd
 # Terminal 1 - Scheduler
-start_scheduler.bat
+scripts\start_scheduler.bat
 
 # Terminal 2 - Webserver  
-start_webserver.bat
+scripts\start_webserver.bat
 
 # Access UI: http://localhost:8080 (admin/admin)
 ```
@@ -113,7 +113,7 @@ Each step includes both trigger and monitor tasks to ensure proper job completio
 ```cmd
 # Run comprehensive system health check
 run_health_check.bat
-# Or: python health_check.py
+# Or: python utils/health_check.py
 ```
 
 Health check validates:
@@ -126,7 +126,7 @@ Health check validates:
 ### Connection Testing
 ```cmd
 # Test Informatica connection setup
-python setup_connection.py
+python utils/setup_connection.py
 ```
 
 ### Manual Verification

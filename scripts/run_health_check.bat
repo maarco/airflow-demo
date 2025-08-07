@@ -1,9 +1,9 @@
 @echo off
-echo Setting up Informatica connection...
+echo Running health checks...
 
 REM Activate virtual environment
-if exist "airflow_env\Scripts\activate.bat" (
-    call airflow_env\Scripts\activate
+if exist "..\airflow_env\Scripts\activate.bat" (
+    call ..\airflow_env\Scripts\activate
 ) else (
     echo Virtual environment not found. Run install.bat first.
     pause
@@ -13,7 +13,7 @@ if exist "airflow_env\Scripts\activate.bat" (
 REM Load environment variables
 call setup_env.bat
 
-REM Run connection setup
-python setup_connection.py
+REM Run health check
+python ..\utils\health_check.py
 
 pause
