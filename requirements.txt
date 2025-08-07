@@ -1,0 +1,14 @@
+apache-airflow==3.0.3
+apache-airflow-core==3.0.3
+apache-airflow-providers-common-compat==1.7.3
+apache-airflow-providers-common-io==1.6.2
+apache-airflow-providers-common-sql==1.27.4
+apache-airflow-providers-http==5.3.3
+apache-airflow-providers-microsoft-mssql==4.3.2
+apache-airflow-providers-smtp==2.1.2
+apache-airflow-providers-standard==1.5.0
+apache-airflow-task-sdk==1.0.3
+argcomplete==3.6.2
+pyodbc==5.2.0
+requests==2.32.4
+python-dotenv==1.1.1

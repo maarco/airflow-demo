@@ -1,0 +1,5 @@
+{
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false,
+  "pythonPath": "./airflow_env/bin/python"
+}
