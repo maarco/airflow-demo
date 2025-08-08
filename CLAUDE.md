@@ -4,175 +4,185 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Apache Airflow demo project that orchestrates Informatica Intelligent Cloud Services (IICS) ETL jobs. The project demonstrates how to use Airflow as a workflow orchestrator for complex data pipelines that integrate with Informatica Cloud's REST API.
+This is an Apache Airflow 3.0.3 demonstration project showcasing modern TaskFlow API integration with Informatica Intelligent Cloud Services (IICS). The project demonstrates enterprise data pipeline orchestration using Airflow's latest features including the Task SDK, enhanced security, and improved DAG authoring patterns.
 
-**Key Architecture Components:**
-- **Airflow DAGs**: Python workflows that define job dependencies and orchestration logic
-- **IICS Integration**: REST API calls for authentication, job triggering, and status monitoring  
-- **SQL Server Backend**: Metadata database for Airflow's operational data
-- **Windows Environment**: Batch scripts for simplified deployment and management
+## Development Environment
 
-## Development Environment Setup
+### Environment Setup
+```bash
+# Windows (using provided batch scripts)
+install.bat                          # Complete environment setup
+run_health_check.bat                # Validate all dependencies
 
-### Prerequisites Installation
-```cmd
-# Install everything at once
-scripts\install.bat
-
-# Or manually:
+# Manual setup (cross-platform)
 python -m venv airflow_env
-airflow_env\Scripts\activate
+source airflow_env/bin/activate     # Linux/macOS
+# airflow_env\Scripts\activate      # Windows
 pip install -r requirements.txt
 ```
 
-### Configuration
-1. Update `.env` file with your SQL Server and IICS credentials
-2. Follow `docs\SQL_SETUP.md` for database creation
-3. Run health checks: `scripts\run_health_check.bat`
+### Required Environment Variables
+Create a `.env` file with:
+```env
+AIRFLOW_HOME=C:\temp\airflow  # Adjust for your platform
+AIRFLOW_DB_CONNECTION=mssql+pyodbc://user:pass@server/db?driver=ODBC+Driver+17+for+SQL+Server
+IICS_USERNAME=your-informatica-username
+IICS_PASSWORD=your-informatica-password  
+IICS_POD_URL=https://dm-us.informaticacloud.com
+```
 
-### Airflow Initialization  
-```cmd
-# Initialize database schema
-airflow db init
+### Database and Service Management
+```bash
+# Database initialization (Airflow 3.0.3)
+airflow db migrate                   # Use migrate, not init
 
-# Create admin user
+# User management
 airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@company.com --password admin
 
-# Setup Informatica connection
-scripts\setup_informatica_connection.bat
+# Connection setup
+python utils/setup_connection.py    # Configure Informatica connection
+
+# Service startup (Windows)
+start_scheduler.bat                  # Start Airflow scheduler
+start_webserver.bat                  # Start Airflow webserver (http://localhost:8080)
+
+# Docker deployment
+export AIRFLOW_UID=$(id -u)
+export _AIRFLOW_WWW_USER_USERNAME=admin
+export _AIRFLOW_WWW_USER_PASSWORD=admin
+docker-compose up -d
 ```
 
-### Starting Services
-```cmd
-# Terminal 1 - Scheduler
-scripts\start_scheduler.bat
+### Development Commands
+```bash
+# Health checks and validation
+python utils/health_check.py        # Comprehensive system validation
+airflow dags list                    # Verify DAG discovery
+airflow dags test <dag_id>          # Test DAG execution
 
-# Terminal 2 - Webserver  
-scripts\start_webserver.bat
-
-# Access UI: http://localhost:8080 (admin/admin)
+# Virtual environment activation
+source airflow_env/bin/activate     # Always work within venv
 ```
 
-## Core Architecture Patterns
+## Architecture Overview
 
-### IICS Integration Pattern
-All DAGs follow a standard three-step pattern for each job:
-1. **Authentication**: `authenticate_iics()` - Gets session token via REST API
-2. **Job Triggering**: `trigger_iics_job()` - Starts job execution and returns run ID  
-3. **Status Monitoring**: `monitor_job_status()` - Polls job status until completion
+### Core Components Architecture
 
-### XCom Data Flow
-- Session tokens and base URLs shared via XCom from authentication task
-- Run IDs passed from trigger tasks to monitoring tasks
-- Task names stored for enhanced logging and error reporting
+**DAG Layer**: 5 demonstration DAGs showcasing different integration patterns
+- `informatica_simplified_v3`: Basic TaskFlow API with mixed HTTP/Python operators
+- `informatica_http_native_v3`: Pure TaskFlow approach using native HTTP integration  
+- `informatica_demo_dag`: Simple linear workflow demonstration
+- `informatica_etl_pipeline`: Complex multi-job pipeline with dependencies
+- `informatica_lineage_demo_v3`: Advanced lineage tracking integration
 
-### Error Handling Strategy
-- **Network resilience**: Timeout handling and connection retry logic
-- **Status validation**: Comprehensive job state checking (SUCCESS/FAILED/RUNNING)
-- **Detailed logging**: IICS API responses captured for troubleshooting
-- **Graceful degradation**: Clear error messages with actionable guidance
+**Integration Layer**: IICS REST API integration following standardized patterns
+- Authentication → Job Triggering → Status Monitoring 
+- Session management with secure token handling
+- Comprehensive error handling and retry logic
+- Job metadata tracking and lineage capture
 
-## DAG Structure
+**Utility Layer**: Supporting infrastructure components
+- `DataLineageTracker`: PostgreSQL-based lineage storage and reporting
+- Health check validation for Python/Airflow/IICS/ODBC components
+- Connection management and credential handling
 
-### Simple DAG (`informatica_demo_dag.py`)
-Linear workflow for single job execution:
-```
-authenticate → trigger_job → monitor_job
-```
+### Airflow 3.0.3 Specific Patterns
 
-### Complex Pipeline (`informatica_complex_pipeline.py`)  
-Multi-step ETL with dependencies:
-```
-start → authenticate → extract → transform → load → complete
-```
+**TaskFlow API Implementation**:
+```python
+from airflow.sdk import dag, task  # Note: lowercase 'dag'
+from typing import Annotated
 
-Each step includes both trigger and monitor tasks to ensure proper job completion before proceeding.
-
-## Key Functions
-
-### `authenticate_iics(**context)`
-- **Purpose**: Establishes IICS session via REST API login
-- **Returns**: Session ID and base URL pushed to XCom
-- **Location**: Both DAG files (dags/informatica_demo_dag.py:10, dags/informatica_complex_pipeline.py:13)
-
-### `trigger_iics_job(job_id, **context)`  
-- **Purpose**: Initiates job execution via IICS REST API
-- **Requires**: Valid session from authenticate task
-- **Returns**: Run ID for status monitoring
-- **Location**: Both DAG files (dags/informatica_demo_dag.py:39, dags/informatica_complex_pipeline.py:52)
-
-### `monitor_job_status(**context)`
-- **Purpose**: Polls job status until completion with detailed logging
-- **Timeout**: 30 minutes (60 attempts × 30 seconds)  
-- **Handles**: SUCCESS/FAILED/RUNNING/CANCELLED states
-- **Location**: Both DAG files (dags/informatica_demo_dag.py:66, dags/informatica_complex_pipeline.py:95)
-
-## Testing & Validation
-
-### Health Checks
-```cmd
-# Run comprehensive system health check
-run_health_check.bat
-# Or: python utils/health_check.py
+@dag(dag_id='example', schedule=None, start_date=datetime(2024,1,1))
+def my_dag():
+    @task
+    def my_task(data: Annotated[Dict[str, str], 'XCom data']) -> Dict[str, Any]:
+        return {"result": "processed"}
+    
+    result = my_task()  # TaskFlow automatically handles dependencies
+    
+my_dag()  # Call to instantiate the DAG
 ```
 
-Health check validates:
-- Python 3.8+ compatibility
-- Environment variables configuration
-- SQL Server ODBC drivers
-- IICS API connectivity
-- Airflow installation and providers
+**Key Migration Considerations**:
+- Import from `airflow.sdk` not `airflow.decorators` for core components
+- Use `schedule=None` instead of `schedule_interval=None`
+- Type annotations require `Annotated` types for XCom parameters to avoid type checker errors
+- DAG functions must be called at module level to instantiate
+- Use `airflow db migrate` not `airflow db init` for database setup
 
-### Connection Testing
-```cmd
-# Test Informatica connection setup
-python utils/setup_connection.py
+### IICS Integration Architecture
+
+**Three-Phase Pattern** (used consistently across all DAGs):
+1. **Authentication Phase**: 
+   - REST API login to get session token
+   - Session data stored in XCom for downstream tasks
+   - Connection details managed via Airflow connections
+
+2. **Job Execution Phase**:
+   - Job triggering via IICS REST API
+   - Run ID capture for status monitoring
+   - Job metadata collection for lineage tracking
+
+3. **Monitoring Phase**:
+   - Polling-based status checking with configurable timeouts
+   - Comprehensive status validation (SUCCESS/FAILED/RUNNING/CANCELLED)
+   - Error message capture and propagation
+
+### Data Lineage System
+
+**Optional Advanced Feature**: 
+- `utils/data_lineage_tracker.py` provides PostgreSQL-based lineage storage
+- Captures source systems, transformation logic, target systems, execution statistics
+- Integration requires PostgreSQL connection named 'lineage_db'
+- Automatically tracks job metadata, data volumes, and transformation steps
+
+## Development Patterns
+
+### Creating New DAGs
+1. Follow TaskFlow API patterns with `@dag` and `@task` decorators
+2. Use `Annotated` types for parameters that receive XCom data
+3. Implement comprehensive error handling with proper AirflowException usage
+4. Include session management for external API integrations
+5. Add appropriate retry logic and timeout handling
+
+### Working with IICS Integration
+- All authentication should use the established session management pattern
+- Job IDs can be configured via Airflow Variables (`iics_job_id`)  
+- Status monitoring should include comprehensive state checking
+- Use the provided connection setup utilities for credential management
+
+### Type Annotations Best Practices
+```python
+# Correct: Handles both runtime XCom and type checking
+def process_data(session: Annotated[Dict[str, str], 'Auth session']) -> Dict[str, Any]:
+
+# Incorrect: Causes Pylance errors with XCom parameters  
+def process_data(session: Dict[str, str]) -> Dict[str, Any]:
 ```
 
-### Manual Verification
-- Access Airflow UI at http://localhost:8080
-- Check Admin → Connections for `informatica_cloud` entry
-- Trigger DAGs manually to verify IICS integration
+### Docker Development
+The project includes full Docker Compose configuration with:
+- PostgreSQL backend (production-ready)
+- Enhanced security settings for Airflow 3.0.3
+- Proper volume mounting for DAGs, logs, and configuration
+- Environment variable injection for IICS credentials
 
-## Configuration Management
+## Configuration Details
 
-### Environment Variables (`.env`)
-- `AIRFLOW_DB_CONNECTION`: SQL Server connection string
-- `IICS_USERNAME/IICS_PASSWORD`: Informatica Cloud credentials  
-- `IICS_POD_URL`: Regional POD endpoint (dm-us, dm-eu, etc.)
-- `AIRFLOW_HOME`: Base directory for Airflow files
+### Python Environment
+- **Required**: Python 3.9+ (Airflow 3.0.3 requirement)
+- **Virtual Environment**: `airflow_env/` directory (included in .gitignore)
+- **Pyright Configuration**: Custom config in `config/pyrightconfig.json` pointing to venv
 
-### Airflow Configuration (`airflow.cfg`)
-- **Executor**: SequentialExecutor (development) / LocalExecutor (production)
-- **Parallelism**: Limited to 1 for demo environment
-- **DAG Directory**: `C:\temp\airflow\dags` (customizable via AIRFLOW_HOME)
+### Provider Dependencies
+- `apache-airflow-providers-http==5.3.3`: HTTP operator support  
+- `apache-airflow-providers-microsoft-mssql==4.3.2`: SQL Server integration
+- `apache-airflow-task-sdk==1.0.3`: Modern TaskFlow API support
 
-## Troubleshooting
-
-### Common Issues
-1. **ODBC Driver Missing**: Install "ODBC Driver 17 for SQL Server"
-2. **Port Conflicts**: Change webserver port with `--port 8081` 
-3. **IICS Authentication**: Verify POD URL and credentials in `.env`
-4. **Database Connection**: Check SQL Server connectivity and user permissions
-
-### Log Locations
-- Airflow logs: `{AIRFLOW_HOME}/logs/`
-- Task execution: Airflow UI → DAG → Task Instance → Logs
-- IICS API responses: Captured in task logs with detailed status information
-
-### Reset Environment
-```cmd
-rmdir /s airflow_env
-rmdir /s C:\temp\airflow  
-install.bat
-```
-
-## Production Considerations
-
-When deploying to production environments:
-- Use LocalExecutor or CeleryExecutor for parallel processing
-- Implement proper authentication and RBAC
-- Set up monitoring and alerting for job failures
-- Use version control for DAG deployments
-- Configure backup/recovery for Airflow metadata database
-- Implement secrets management for credentials
+### Security Configuration
+Airflow 3.0.3 enhanced security features enabled:
+- CSRF protection enabled
+- Sensitive field hiding activated  
+- Secure cookie handling
+- Enhanced connection encryption
